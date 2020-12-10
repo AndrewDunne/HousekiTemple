@@ -9,15 +9,16 @@
 
   <script type="module">
     import * as THREE from './js/build/three.module.js'
-	import { OBJLoader } from './js/examples/jsm/controls/three-OBJLoader.js'
-	import { MTLLoader } from './js/examples/jsm/controls/MTLLoader.js'
-	import { FlyControls } from './js/examples/jsm/controls/FlyControls.js'
-	import { PointerLockControls } from './js/examples/jsm/controls/PointerLockControls.js'
+	import { OBJLoader } from './js/loaders/three-OBJLoader.js'
+	import { MTLLoader } from './js/loaders/MTLLoader.js'
+	import { RGBELoader } from './js/loaders/RGBELoader.js';
+	import { FlyControls } from './js/controls/FlyControls.js'
+	import { PointerLockControls } from './js/controls/PointerLockControls.js'
 	//import { LightProbeHelper } from './js/examples/jsm/lighting/LightProbeHelper.js'
 	
  
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.1, 1000);
     //we are going to place our 3D meshes at the center of the world's coordinate system, 
     //  so we move the camera so that it can see them 
     camera.position.z = 5;
@@ -26,63 +27,77 @@
 	let controls = new PointerLockControls( camera, document.body );
 	controls.connect;
 
+	const material3 = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0 });
+
 	new RGBELoader()
 	.setDataType( THREE.UnsignedByteType )
-	.setPath( './HDRIs' )
-	.load( 'royal_esplanade_1k.hdr', function ( texture ) {
+	.setPath( './textures/' )
+	.load( 'plains.hdr', function ( texture ) {
 
-		const envMap = pmremGenerator.fromEquirectangular( texture ).texture;
+		const enviro = pmremGenerator.fromEquirectangular( texture ).texture;
 
-		scene.background = envMap;
-		scene.environment = envMap;
+		scene.background = enviro;
+		scene.environment = enviro;
 
 		texture.dispose();
 		pmremGenerator.dispose();
 
-		render();
 
-		// model
+		//const mtloader = new MTLLoader();
 
-		// use of RoughnessMipmapper is optional
-		//const roughnessMipmapper = new RoughnessMipmapper( renderer );
+		//mtloader.load('./HousekiTempleTrisShiny.mtl', function(materials){
 
-		const loader = new GLTFLoader().setPath( 'models/gltf/DamagedHelmet/glTF/' );
-		loader.load( 'DamagedHelmet.gltf', function ( gltf ) {
+			//materials.preload();
+			
+			const loader = new OBJLoader();
+			//loader.setMaterials(materials);
+			loader.load(
+				// resource URL
+				'./HousekiTempleTrisShiny.obj',
+				// called when resource is loaded
+				function ( object ) {
+				
+					object.traverse(function(child){
+					
+						child.castShadow = true;
+						child.receiveShadow = true;
+						child.material = material3;
+						
+						});
+					
+					scene.add( object );
 
-			gltf.scene.traverse( function ( child ) {
+				},
+				// called when loading is in progresses
+				function ( xhr ) {
 
-				if ( child.isMesh ) {
+					console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
+			
+				},
+				// called when loading has errors
+				function ( error ) {
 
-					// TOFIX RoughnessMipmapper seems to be broken with WebGL 2.0
-					// roughnessMipmapper.generateMipmaps( child.material );
+					console.log( 'An error happened' );
 
 				}
+			);
 
-			} );
-
-			scene.add( gltf.scene );
-
-			//roughnessMipmapper.dispose();
-
-			render();
-
-		} );
+		//});
 
 	} );
 
-renderer = new THREE.WebGLRenderer( { antialias: true } );
-renderer.setPixelRatio( window.devicePixelRatio );
-renderer.setSize( window.innerWidth, window.innerHeight );
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1;
-renderer.outputEncoding = THREE.sRGBEncoding;
-container.appendChild( renderer.domElement );
-
-const pmremGenerator = new THREE.PMREMGenerator( renderer );
-pmremGenerator.compileEquirectangularShader();
-
-    const renderer = new THREE.WebGLRenderer();
+	let renderer = new THREE.WebGLRenderer( { antialias: true } );
 	renderer.shadowMapEnabled = true;
+	renderer.setPixelRatio( window.devicePixelRatio );
+	renderer.setSize( window.innerWidth, window.innerHeight );
+	renderer.toneMapping = THREE.ACESFilmicToneMapping;
+	renderer.toneMappingExposure = 1;
+	renderer.outputEncoding = THREE.sRGBEncoding;
+	//container.appendChild( renderer.domElement );
+
+	const pmremGenerator = new THREE.PMREMGenerator( renderer );
+	pmremGenerator.compileEquirectangularShader();
+	
 	
 	
 	
@@ -227,39 +242,6 @@ pmremGenerator.compileEquirectangularShader();
 	
 
 
-const mtloader = new MTLLoader();
-
-mtloader.load('./HousekiTempleTextured.mtl', function(materials){
-
-	materials.preload();
-	
-	const loader = new OBJLoader();
-	loader.setMaterials(materials);
-	loader.load(
-		// resource URL
-		'./HousekiTempleTextured.obj',
-		// called when resource is loaded
-		function ( object ) {
-			object.traverse(function(child){child.castShadow = true;});
-			object.traverse(function(child){child.receiveShadow = true;});
-			scene.add( object );
-
-		},
-		// called when loading is in progresses
-		function ( xhr ) {
-
-			console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
-	
-		},
-		// called when loading has errors
-		function ( error ) {
-
-			console.log( 'An error happened' );
-
-		}
-	);
-
-});
 	
 	document.addEventListener( 'click', function () {controls.lock();}, false );
 	
